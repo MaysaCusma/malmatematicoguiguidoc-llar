@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A Captura do Cifra</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="game-container">
+        <h1>A Caçada Matemática 🕵️</h1>
+
+        <div class="chase-bar-container">
+            <div id="cifra" class="character">
+                <img src="cifra_fugitivo.png" alt="Cifra Fugitivo">
+            </div>
+            
+            <div id="agente" class="character">Agente</div>
+            <div id="chaseBar" class="chase-bar"></div>
+        </div>
+        
+        <p id="message" class="message"></p>
+        
+        <div class="math-area">
+            <h2>Desafio Matemático:</h2>
+            <p id="question"></p>
+            <input type="text" id="answerInput" placeholder="Sua resposta..." required>
+            <button onclick="checkAnswer()">Responder</button>
+        </div>
+
+        <button onclick="startGame()">Iniciar Jogo</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
