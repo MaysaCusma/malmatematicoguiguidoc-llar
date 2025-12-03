@@ -1,193 +1,159 @@
-// Variáveis Globais
-let pursuitValue = 0; // 0 = Agente no começo, 100 = Agente alcança o fugitivo
-let correctAnswer = 0;
-let gameStarted = false;
-let isFinalRiddleActive = false;
+/* Corre do GuiGui - script.js
+   Autor: ChatGPT (adaptado para May)
+   Observações:
+   - imagem do matemático usada em src: /mnt/data/guiguidocellar-removebg-preview.png
+   - movimentação com setas do teclado
+*/
 
-// Configurações do Jogo
-const ADVANCE_ON_CORRECT = 10; 
-const RETREAT_ON_WRONG = 5;  
-const RETREAT_ON_RIDDLE_FAIL = 25; // MUITO mais recuo se errar a charada difícil
-const CAPTURE_THRESHOLD = 90; // Valor a partir do qual o Cifra é alcançado (90% da barra)
+const chaser = document.getElementById('chaser');
+const mathematician = document.getElementById('mathematician');
+const modal = document.getElementById('modal');
+const charText = document.getElementById('charada-text');
+const answerInput = document.getElementById('answer');
+const submitBt = document.getElementById('submit-answer');
+const skipBt = document.getElementById('skip');
+const status = document.getElementById('status');
+const fugasTxt = document.getElementById('fugas');
+const overlay = document.getElementById('ui-overlay');
+const chooseBtns = document.querySelectorAll('.choose');
+const win = document.getElementById('win');
+const restart = document.getElementById('restart');
 
-// Elementos do DOM
-const chaseBar = document.getElementById('chaseBar');
-const questionText = document.getElementById('question');
-const answerInput = document.getElementById('answerInput');
-const message = document.getElementById('message');
-const agenteElement = document.getElementById('agente');
+let fugas = 0;
+let chaserPos = { x: 80, y: 70 }; // left, bottom (px)
+let chaserSpeed = 8; // px per tick
+let keys = {};
+let mathematicianState = {
+    xRight: 120,
+    bottom: 60,
+    speed: 1.0, // base speed for wandering
+    fleeing: false
+};
+let currentAnswer = null;
+let playing = false;
+let genderChosen = 'male';
 
-/**
- * Inicia o jogo, reseta o estado.
- */
-function startGame() {
-    pursuitValue = 10; // Agente começa com uma pequena vantagem
-    gameStarted = true;
-    isFinalRiddleActive = false;
-    answerInput.disabled = false;
-    message.textContent = 'A perseguição começou! Resolva a conta para avançar.';
-    document.querySelector('.game-container > button').style.display = 'none'; 
-    
-    updatePursuitBar();
-    generateQuestion();
+/* initial setup - choose gender */
+chooseBtns.forEach(b=>{
+    b.addEventListener('click', ()=>{
+        genderChosen = b.dataset.gender || 'male';
+        chaser.classList.remove('male','female');
+        chaser.classList.add(genderChosen);
+        overlay.classList.add('hidden');
+        startGame();
+    });
+});
+
+/* restart */
+restart?.addEventListener('click', ()=>{
+    location.reload();
+});
+
+/* start loop */
+function startGame(){
+    playing = true;
+    status.textContent = 'Perseguição iniciada — vá até o matemático!';
+    // ensure focus for keyboard
+    chaser.focus();
+    window.requestAnimationFrame(gameLoop);
 }
 
-/**
- * Gera uma nova pergunta de perseguição (simples)
- */
-function generateQuestion() {
-    if (isFinalRiddleActive) return;
+/* keyboard handling */
+window.addEventListener('keydown', (e)=>{
+    if(!playing) return;
+    keys[e.key] = true;
+});
+window.addEventListener('keyup', (e)=>{
+    keys[e.key] = false;
+});
 
-    // Adição e Subtração com números maiores
-    const num1 = Math.floor(Math.random() * 50) + 10;
-    const num2 = Math.floor(Math.random() * 20) + 5;
-    const operator = Math.random() < 0.5 ? '+' : '-';
+/* simple random wandering for mathematician */
+function mathWander(){
+    // move left-right between 60px and 420px from right edge
+    // We'll manipulate "right" style to simulate him moving along path
+    let min = 80;
+    let max = window.innerWidth * 0.5; // dynamic limit
+    // adjust mathem. relative right offset
+    let delta = (Math.random() - 0.5) * 6 * mathematicianState.speed;
+    mathematicianState.xRight = Math.max(40, Math.min(420, mathematicianState.xRight + delta));
+    mathematician.style.right = `${mathematicianState.xRight}px`;
+}
 
-    let question = '';
-    let result = 0;
+/* collision detection */
+function isColliding() {
+    const a = chaser.getBoundingClientRect();
+    const b = mathematician.getBoundingClientRect();
+    return !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
+}
 
-    if (operator === '+') {
-        result = num1 + num2;
-        question = `${num1} + ${num2} = ?`;
-    } else {
-        const bigger = Math.max(num1, num2);
-        const smaller = Math.min(num1, num2);
-        result = bigger - smaller;
-        question = `${bigger} - ${smaller} = ?`;
+/* generate medium/high-school mixed charadas */
+function generateCharada() {
+    // Types: linear equation, percent, power, factorization, combined ops
+    const types = ['linear','percent','power','factor','mixed','rational'];
+    const t = types[Math.floor(Math.random()*types.length)];
+    let q = '', a = null;
+
+    if(t==='linear'){
+        // ax + b = c  -> x = (c-b)/a with integer solution
+        let acoef = [1,2,3,4][Math.floor(Math.random()*4)];
+        let x = Math.floor(Math.random()*12) - 2; // -2..9
+        let b = Math.floor(Math.random()*10) - 5;
+        let c = acoef*x + b;
+        q = `Resolva a equação: ${acoef}x ${b>=0?'+ '+b: '- '+Math.abs(b)} = ${c}`;
+        a = x;
+    } else if(t==='percent'){
+        // percent problem: A is p% of B -> compute A or B
+        let p = [5,10,12,15,20,25,30][Math.floor(Math.random()*7)];
+        let B = (Math.floor(Math.random()*18)+5)*5;
+        let A = Math.round(B * p / 100);
+        q = `${p}% de ${B} é quanto?`;
+        a = A;
+    } else if(t==='power'){
+        // powers or roots
+        let base = [2,3,4,5][Math.floor(Math.random()*4)];
+        let exp = [2,3,4][Math.floor(Math.random()*3)];
+        q = `Quanto é ${base}<sup>${exp}</sup>?`;
+        a = Math.pow(base,exp);
+    } else if(t==='factor'){
+        // fatoração simples: qual o produto de (x+a)(x+b) para x=... or numeric factoring
+        let a1 = Math.floor(Math.random()*6)+1;
+        let b1 = Math.floor(Math.random()*6)+1;
+        let xval = Math.floor(Math.random()*8)+1;
+        let expr = (x)=> (x + a1)*(x + b1);
+        q = `Calcule (x+${a1})(x+${b1}) para x = ${xval}.`;
+        a = expr(xval);
+    } else if(t==='mixed'){
+        // mistura de operações
+        let v1 = Math.floor(Math.random()*25)+3;
+        let v2 = Math.floor(Math.random()*20)+2;
+        let v3 = Math.floor(Math.random()*10)+1;
+        q = `Calcule: (${v1} + ${v2}) × ${v3} ÷ ${Math.max(1,Math.floor(Math.random()*5)+1)} (arredonde se necessário)`;
+        let denom = Math.max(1,Math.floor(Math.random()*5)+1);
+        a = Math.round(((v1+v2) * v3) / denom);
+    } else if(t==='rational'){
+        // pequeno problema com fração
+        let num = Math.floor(Math.random()*12)+3;
+        let den = Math.floor(Math.random()*8)+2;
+        let mult = Math.floor(Math.random()*6)+2;
+        q = `Simplifique e calcule: (${num}/${den}) × ${mult}`;
+        a = Math.round((num/den)*mult*100)/100;
+        // if integer, convert to int
+        if (Math.abs(a - Math.round(a)) < 0.0001) a = Math.round(a);
     }
 
-    correctAnswer = result;
-    questionText.textContent = question;
-    answerInput.value = ''; 
-    answerInput.focus();
+    return { q, a };
 }
 
-/**
- * Gera a Charada Matemática FINAL (Difícil).
- */
-function generateFinalRiddle() {
-    isFinalRiddleActive = true;
-    answerInput.type = 'text'; // Permite digitar texto para respostas mais complexas
-
-    const charadas = [
-        {
-            q: "Eu sou o número que, multiplicado por 4 e subtraído por 12, resulta em 20. Quem sou eu?",
-            a: "8"
-        },
-        {
-            q: "Se um terço de um número é 9, qual é o número inteiro? (Apenas o número)",
-            a: "27"
-        },
-        {
-            q: "A idade do meu pai é o dobro da minha. Juntas, nossas idades somam 60. Qual é a minha idade? (Apenas o número)",
-            a: "20"
-        }
-    ];
-
-    const riddle = charadas[Math.floor(Math.random() * charadas.length)];
-    correctAnswer = riddle.a;
-    
-    questionText.textContent = `🚨 CHARADA DE CAPTURA FINAL! ${riddle.q}`;
-    message.textContent = 'Resolva o enigma para prendê-lo! Se errar, ele foge!';
+/* show modal with question */
+function askCharada(){
+    const item = generateCharada();
+    currentAnswer = item.a;
+    charText.innerHTML = item.q;
     answerInput.value = '';
+    modal.classList.remove('hidden');
     answerInput.focus();
 }
 
-/**
- * Atualiza visualmente a barra e checa o estado do jogo.
- */
-function updatePursuitBar() {
-    pursuitValue = Math.max(0, Math.min(100, pursuitValue));
-    
-    // Chase bar preenchida de 0 a 100
-    chaseBar.style.width = pursuitValue + '%'; 
-    
-    // Agente se move da esquerda (0) para a direita (100)
-    agenteElement.style.left = (pursuitValue - 2) + '%'; // Move o agente junto com o progresso
-    
-    // Cifra (Fugitivo) permanece na ponta da fuga
-    
-    // Checagem de Fim de Jogo (Fuga total)
-    if (pursuitValue < 0) { // O Agente 'recuou' demais
-        endGame(false); 
-        return;
-    }
-    
-    // Checagem de Charada Final (Alcançou)
-    if (pursuitValue >= CAPTURE_THRESHOLD && !isFinalRiddleActive) {
-        // Redefine a posição para o ponto de captura para estabilidade
-        pursuitValue = CAPTURE_THRESHOLD; 
-        updatePursuitBar(); 
-        generateFinalRiddle();
-    }
-}
-
-/**
- * Verifica a resposta do jogador e atualiza o estado do jogo.
- */
-function checkAnswer() {
-    if (!gameStarted) return;
-
-    const playerAnswer = answerInput.value.trim().toLowerCase();
-    const isCorrect = (playerAnswer == correctAnswer);
-
-    if (playerAnswer === "") {
-        message.textContent = 'Por favor, digite sua resposta.';
-        return;
-    }
-
-    if (isCorrect) {
-        if (isFinalRiddleActive) {
-            // Se acerta a Charada Final: Vitória
-            endGame(true);
-        } else {
-            // Se acerta a perseguição normal: Agente avança
-            pursuitValue += ADVANCE_ON_CORRECT;
-            message.textContent = `✅ Correto! Avanço rápido (+${ADVANCE_ON_CORRECT}%)!`;
-            updatePursuitBar();
-            generateQuestion();
-        }
-    } else {
-        if (isFinalRiddleActive) {
-            // Se erra a Charada Final: Cifra escapa MUITO, charada repete
-            pursuitValue -= RETREAT_ON_RIDDLE_FAIL;
-            message.textContent = `❌ ERRADO! O Cifra fugiu! (-${RETREAT_ON_RIDDLE_FAIL}%) Tente a charada novamente.`;
-            updatePursuitBar();
-            generateFinalRiddle(); 
-        } else {
-            // Se erra a perseguição normal: Cifra avança (Agente recua)
-            pursuitValue -= RETREAT_ON_WRONG; 
-            message.textContent = `❌ Errado! O Cifra ganhou vantagem! (-${RETREAT_ON_WRONG}%)`;
-            updatePursuitBar();
-            generateQuestion();
-        }
-    }
-}
-
-/**
- * Função para encerrar o jogo (Vitória ou Derrota).
- */
-function endGame(isVictory) {
-    gameStarted = false;
-    answerInput.disabled = true;
-    answerInput.type = 'number'; // Volta para número (limpeza)
-    isFinalRiddleActive = false;
-    
-    if (isVictory) {
-        message.textContent = '🎉 CAPTURA BEM SUCEDIDA! O Cifra foi preso! 🎉';
-        questionText.textContent = 'FIM DE JOGO: Você resolveu o enigma e prendeu o fugitivo.';
-    } else {
-        message.textContent = '😟 O Cifra escapou! Fim de Jogo.';
-        questionText.textContent = 'FIM DE JOGO: O fugitivo escapou e a perseguição terminou.';
-    }
-    
-    const startButton = document.querySelector('.game-container > button');
-    startButton.textContent = 'Recomeçar Jogo';
-    startButton.style.display = 'block';
-}
-
-// Inicializa a tela
-document.addEventListener('DOMContentLoaded', () => {
-    document.querySelector('.game-container > button').style.display = 'block';
-    updatePursuitBar();
+/* respond */
+submitBt.addEventListener('click', ()=>{
 });

@@ -1,35 +1,66 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>A Captura do Cifra</title>
-    <link rel="stylesheet" href="style.css">
+    <meta charset="utf-8" />
+    <title>Corre do GuiGui - Perseguição</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-
-    <div class="game-container">
-        <h1>A Caçada Matemática 🕵️</h1>
-
-        <div class="chase-bar-container">
-            <div id="cifra" class="character">
-                <img src="cifra_fugitivo.png" alt="Cifra Fugitivo">
+    <div id="ui-overlay" class="overlay">
+        <div class="menu">
+            <h1>Escolha seu perseguidor</h1>
+            <div class="choices">
+                <button class="choose" data-gender="male">👨 Homem</button>
+                <button class="choose" data-gender="female">👩 Mulher</button>
             </div>
-            
-            <div id="agente" class="character">Agente</div>
-            <div id="chaseBar" class="chase-bar"></div>
+            <p class="hint">Use as setas do teclado para mover. Alcance o matemático e responda a charada.</p>
         </div>
-        
-        <p id="message" class="message"></p>
-        
-        <div class="math-area">
-            <h2>Desafio Matemático:</h2>
-            <p id="question"></p>
-            <input type="text" id="answerInput" placeholder="Sua resposta..." required>
-            <button onclick="checkAnswer()">Responder</button>
+    </div>
+
+    <div id="game">
+        <div id="background">
+            <div class="layer back"></div>
+            <div class="layer mid"></div>
+            <div class="layer front"></div>
         </div>
 
-        <button onclick="startGame()">Iniciar Jogo</button>
+        <div id="path">
+            <!-- personagem perseguidor -->
+            <div id="chaser" class="chaser male" tabindex="0" aria-label="Perseguidor"></div>
+
+            <!-- matemático (foto enviada) -->
+            <img id="mathematician" src="guiguidocellar-removebg-preview.png" alt="Matemático" />
+
+            <!-- HUD -->
+            <div id="hud">
+                <div id="fugas">Fugas: 0</div>
+                <div id="status">Aguardando perseguidor...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- modal charada -->
+    <div id="modal" class="modal hidden">
+        <div class="modal-card">
+            <h2>Charada Matemática</h2>
+            <p id="charada-text"></p>
+            <input id="answer" type="text" inputmode="numeric" placeholder="Digite a resposta" />
+            <div class="modal-actions">
+                <button id="submit-answer">Responder</button>
+                <button id="skip" class="muted">Desistir (não recomendado)</button>
+            </div>
+            <p class="modal-note">Nível: Ensino Médio — operações, porcentagem, equações simples, potências e fatoração.</p>
+        </div>
+    </div>
+
+    <!-- vitória -->
+    <div id="win" class="overlay hidden">
+        <div class="menu">
+            <h1>🎉 Capturou o matemático!</h1>
+            <p>Parabéns — você venceu a caçada.</p>
+            <button id="restart">Jogar de novo</button>
+        </div>
     </div>
 
     <script src="script.js"></script>
